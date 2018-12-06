@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="../css/bootstrap.css">
+    <style>
+        /* 隐藏未编译的 Mustache 标签（{{}}）直到实例准备完毕。 */
+        
+        [v-cloak] {
+            display: none;
+        }
+        
+        .del {
+            text-decoration: line-through;
+            color: #ccc;
+        }
+    </style>
+</head>
+<!-- 页面刷新的时候，{{}}标签会闪现又消失，用v-cloak解决 -->
+<div id="app" v-cloak>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 col-md-offset-3">
+                <ul class="nav nav-pills">
+                    <li role="presentation" :class="{active:hash==='all'}"><a href="#/all">全部完成</a></li>
+                    <li role="presentation" :class="{active:hash==='finished'}"><a href="#/finished">已完成</a></li>
+                    <li role="presentation" :class="{active:hash==='unfinished'}"><a href="#/unfinished">未完成</a></li>
+                </ul>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <div class="h3 text-danger">
+                            还有{{count}}件事情没有完成
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <input type="text" class="form-control" v-model="content" @keyup.enter="add">
+                        <ul class="list-group">
+                            <!-- 双击这一栏（记录这一行的数据），用来显示可以修改输入内容的文本框，隐藏原来的文字加复选框 -->
+                            <li class="list-group-item" v-for="(todo,index) in newTodos">
+                                <!-- 如果已完成则加上删除线 -->
+                                <span v-show="curTodo!=todo" @dblclick="show(todo)" :class="{del:todo.isSelected}">
+                                    <input type="checkbox" v-model="todo.isSelected">
+                                    <label>{{todo.item}}</label>
+                                </span>
+                                <!-- 当双击获取的这一行数据与循环到的这个数据一致，则显示，文本框失焦则隐藏文本框-->
+                                <!-- 当文本框显示的时候，然后鼠标点击列表以外的地方，文本框不会消失，因为这时候焦点没有在文本框内，要实现这一操作，要让它自动获取焦点-->
+                                <input type="input" v-model="todo.item" v-show="curTodo==todo" @blur="hide" v-focus="curTodo==todo">
+                                <button class="btn-xs pull-right" @click="del(todo)">&times;</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- <div class="panel-footer">Panel footer</div> -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<body>
+
+</body>
+<script src="vue.js"></script>
+<script>
+    // computed和watch的区别就是，watch能支持异步操作，而computed不行，因为computed有一个return返回值。且watch比较消耗性能，所以一般都是使用computed。
+    let vm = new Vue({
+        el: '#app',
+        data: {
+            todos: [{
+                isSelected: false,
+                item: 'swimming'
+            }, {
+                isSelected: false,
+                item: 'javascript'
+            }, {
+                isSelected: false,
+                item: 'webpack'
+            }, {
+                isSelected: false,
+                item: 'NODEJS'
+            }],
+            curTodo: '',
+            content: '',
+            hash: '' //记录当前hash值
+        },
+        created() { //初始化函数
+            this.todos = JSON.parse(localStorage.getItem('data')) || this.todos;
+            var _this = this;
+            //通过监控hash值来确定是否已完成，hashchangge是监控hash值的默认事件。不明白的是为什么这个监控事件是写在初始化函数这里，还不是用watch监控
+            this.hash = window.location.hash.slice(2) || 'all'; //每次刷新页面就为hash赋值，第一次的时候hash值应该默认all
+            window.addEventListener('hashchange', function() { //此处用箭头函数没起作用？
+                _this.hash = window.location.hash.slice(2);
+            });
+        },
+        watch: {
+            todos: {
+                handler() { //深度监控，watch只能检测一层，比如todos数组，只能检测到删除和新增列表，但是列表里面的内容，比如isSelected值的改变监控不到，这时候就需要深度监控，watch默认就是handler的写法，加上deep:true，深度监控
+                    localStorage.setItem('data', JSON.stringify(this.todos));
+                },
+                deep: true
+            }
+        },
+        //自定义指令
+        directives: {
+            focus(el) {
+                el.focus();
+            }
+        },
+        computed: {
+            count() {
+                return this.todos.filter((item) => {
+                    return !item.isSelected;
+                }).length;
+            },
+            newTodos() {
+                if (this.hash === 'all') return this.todos;
+                if (this.hash === 'finished') return this.todos.filter((item) => item.isSelected);
+                if (this.hash === 'unfinished') return this.todos.filter((item) => !item.isSelected);
+                return this.todos;
+            }
+        },
+        methods: {
+            show(todo) {
+                this.curTodo = todo;
+            },
+            hide() {
+                this.curTodo = '';
+            },
+            add() {
+                this.todos.push({
+                    isSelected: false,
+                    item: this.content
+                });
+                this.content = '';
+            },
+            del(todo) {
+                this.todos = this.todos.filter((item) => {
+                    return item != todo;
+                })
+            }
+        }
+    })
+</script>
+
+</html>
